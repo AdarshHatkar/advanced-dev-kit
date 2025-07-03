@@ -1,16 +1,26 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { doTask } from '../src/commands/do-task.js';
 import { clean } from '../src/commands/clean.js';
 import { deployDev, deployProd } from '../src/commands/deploy.js';
+import { doctor } from '../src/commands/doctor.js';
+
+// Get package.json version
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
+const version = packageJson.version;
 
 const program = new Command();
 
 program
   .name('adk')
   .description('Advanced Dev Kit CLI')
-  .version('0.1.0');
+  .version(version);
 
 program
   .command('do-task')
@@ -21,6 +31,11 @@ program
   .command('clean')
   .description('Clean temporary folders/files')
   .action(clean);
+
+program
+  .command('doctor')
+  .description('Check if ADK is working correctly')
+  .action(doctor);
 
 // Deploy command with subcommands
 const deployCommand = program

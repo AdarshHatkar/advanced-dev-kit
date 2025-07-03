@@ -22,9 +22,17 @@ advanced-dev-kit/
 
 ## Installation
 
+### Local Development
 ```bash
 npm install
 ```
+
+### Global Installation
+```bash
+npm install -g advanced-dev-kit
+```
+
+After global installation, you can use `adk` directly instead of `npx adk`.
 
 ## Build
 
@@ -42,15 +50,12 @@ npm run dev
 
 After building, you can use the CLI:
 
+### With npx (local installation):
 ```bash
 # Execute a task
 npx adk do-task build
 npx adk do-task test
 npx adk do-task deploy
-
-```bash
-# Execute a task
-npx adk do-task
 
 # Clean project artifacts
 npx adk clean
@@ -58,6 +63,21 @@ npx adk clean
 # Deployment commands
 npx adk deploy dev          # Deploy to development environment
 npx adk deploy prod         # Deploy to production with version management
+```
+
+### With global installation:
+```bash
+# Execute a task
+adk do-task build
+adk do-task test
+adk do-task deploy
+
+# Clean project artifacts
+adk clean
+
+# Deployment commands
+adk deploy dev          # Deploy to development environment
+adk deploy prod         # Deploy to production with version management
 ```
 
 ## Available Commands

@@ -4,10 +4,15 @@ import inquirer from 'inquirer';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import boxen from 'boxen';
+import gradientString from 'gradient-string';
+import figlet from 'figlet';
+import ora from 'ora';
 import { doTask } from '../src/commands/do-task.js';
 import { clean } from '../src/commands/clean.js';
 import { deployDev, deployProd } from '../src/commands/deploy.js';
 import { doctor } from '../src/commands/doctor.js';
+import { ui } from '../src/utils/ui-helpers.js';
 
 // Get package.json version
 const __filename = fileURLToPath(import.meta.url);
@@ -15,62 +20,238 @@ const __dirname = dirname(__filename);
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
 const version = packageJson.version;
 
-const program = new Command();
+// Beautiful animated welcome banner
+async function showWelcomeBanner() {
+  console.clear();
+  
+  // More compact ASCII Art Title
+  const title = figlet.textSync('ADK', {
+    font: 'Slant',
+    horizontalLayout: 'fitted',
+    width: 50
+  });
+  
+  // Show title with rainbow gradient
+  console.log(gradientString.rainbow(title));
+  
+  // Compact welcome box with better styling
+  const welcomeMessage = boxen(
+    gradientString('cyan', 'blue')('🚀 Advanced Dev Kit') + 
+    chalk.gray(' v' + version) + '\n' +
+    chalk.cyan('━'.repeat(20)) + '\n' +
+    chalk.white('Fast • Beautiful • Modern ⚡'),
+    {
+      padding: { top: 0, bottom: 0, left: 1, right: 1 },
+      margin: { top: 0, bottom: 1, left: 0, right: 0 },
+      borderStyle: 'round',
+      borderColor: 'cyan',
+      backgroundColor: '#0a0a1e'
+    }
+  );
+  
+  console.log(welcomeMessage);
+}
 
-program
-  .name('adk')
-  .description('Advanced Dev Kit CLI')
-  .version(version);
+// Enhanced command wrapper with loading animation
+function createEnhancedCommand(name: string, description: string, action: Function) {
+  return {
+    name,
+    description: chalk.gray(description),
+    async execute(...args: any[]) {
+      const spinner = ora({
+        text: chalk.cyan(`Executing ${name}...`),
+        spinner: 'dots12',
+        color: 'cyan'
+      }).start();
+      
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300)); // Brief delay for UX
+        spinner.stop();
+        console.log(chalk.green('✓'), chalk.bold(`${name} ready`));
+        await action(...args);
+      } catch (error) {
+        spinner.fail(chalk.red(`Failed to execute ${name}`));
+        console.error(chalk.red('Error:'), error);
+        process.exit(1);
+      }
+    }
+  };
+}
 
-program
-  .command('do-task')
-  .description('Run a custom dev task')
-  .action(doTask);
+// Enhanced error handling and beautiful exit
+process.on('SIGINT', () => {
+  console.log('\n');
+  console.log(gradientString('yellow', 'orange')('👋 Thanks for using ADK! See you soon! ✨'));
+  process.exit(0);
+});
 
-program
-  .command('clean')
-  .description('Clean temporary folders/files')
-  .action(clean);
+process.on('uncaughtException', (error) => {
+  console.log('\n');
+  console.log(boxen(
+    chalk.red('💥 Error: ') + chalk.white(error.message),
+    {
+      padding: { top: 0, bottom: 0, left: 1, right: 1 },
+      borderStyle: 'round',
+      borderColor: 'red',
+      backgroundColor: '#1a0000'
+    }
+  ));
+  process.exit(1);
+});
 
-program
-  .command('doctor')
-  .description('Check if ADK is working correctly')
-  .action(doctor);
+// Main execution function
+async function main() {
+  // Show banner only at the start
+  await showWelcomeBanner();
+  
+  const program = new Command();
 
-// Deploy command with subcommands
-const deployCommand = program
-  .command('deploy')
-  .description('Deployment commands')
-  .action(async () => {
-    // Interactive prompt when deploy is called without subcommands
-    const { environment } = await inquirer.prompt([
-      {
+    program
+    .name(chalk.bold.cyan('adk'))
+    .description(chalk.gray('Modern CLI toolkit with style'))
+    .version(version, '-v, --version', chalk.gray('Show version'))
+    .helpOption('-h, --help', chalk.gray('Show help'))
+    .configureHelp({
+      sortSubcommands: true,
+      subcommandTerm: (cmd) => chalk.cyan('  ' + cmd.name()),
+      commandUsage: (cmd) => chalk.yellow(cmd.name()) + chalk.gray(' [options]'),
+      commandDescription: (cmd) => '  ' + chalk.gray(cmd.description()),
+      optionTerm: (option) => chalk.green('  ' + option.flags),
+      optionDescription: (option) => '  ' + chalk.gray(option.description)
+    });
+
+  // Enhanced commands with beautiful styling
+  program
+    .command('do-task')
+    .alias('task')
+    .description(chalk.gray('🎯 Run custom development tasks'))
+    .action(async (...args) => {
+      const cmd = createEnhancedCommand('do-task', 'Running task', doTask);
+      await cmd.execute(...args);
+    });
+
+  program
+    .command('clean')
+    .alias('c')
+    .description(chalk.gray('🧹 Clean temporary files'))
+    .action(async (...args) => {
+      const cmd = createEnhancedCommand('clean', 'Cleaning project', clean);
+      await cmd.execute(...args);
+    });
+
+  program
+    .command('doctor')
+    .alias('dr')
+    .description(chalk.gray('🩺 System health check'))
+    .action(async (...args) => {
+      const cmd = createEnhancedCommand('doctor', 'Running diagnostics', doctor);
+      await cmd.execute(...args);
+    });
+
+  // Enhanced Deploy command with beautiful UI
+  const deployCommand = program
+    .command('deploy')
+    .alias('d')
+    .description(chalk.gray('🚀 Deploy with confidence'))
+    .action(async () => {
+      console.log(boxen(
+        gradientString('magenta', 'cyan')('🚀 Deployment Center') + '\n' +
+        chalk.gray('Choose your destination'),
+        {
+          padding: { top: 0, bottom: 0, left: 1, right: 1 },
+          margin: { top: 1, bottom: 1, left: 0, right: 0 },
+          borderStyle: 'round',
+          borderColor: 'magenta',
+          backgroundColor: '#0a0a1a'
+        }
+      ));
+
+      const { environment } = await inquirer.prompt({
         type: 'list',
         name: 'environment',
-        message: 'Select deployment environment:',
+        message: chalk.bold('🎯 Select environment:'),
         choices: [
-          { name: 'Development (dev)', value: 'dev' },
-          { name: 'Production (prod)', value: 'prod' }
+          { 
+            name: chalk.green('🔧 Development') + chalk.gray(' (quick deploy)'), 
+            value: 'dev',
+            short: 'Development'
+          },
+          { 
+            name: chalk.red('🏭 Production') + chalk.gray(' (full pipeline)'), 
+            value: 'prod',
+            short: 'Production'
+          }
         ],
         default: 'dev'
-      }
-    ]);
+      });
 
-    if (environment === 'dev') {
-      await deployDev();
-    } else {
-      await deployProd();
-    }
+      const spinner = ora({
+        text: chalk.cyan(`Preparing ${environment} deployment...`),
+        spinner: 'dots12',
+        color: 'cyan'
+      }).start();
+
+      await new Promise(resolve => setTimeout(resolve, 800));
+      spinner.stop();
+
+      if (environment === 'dev') {
+        console.log(chalk.green('✓'), chalk.bold('Deploying to Development'));
+        await deployDev();
+      } else {
+        console.log(chalk.red('✓'), chalk.bold('Deploying to Production'));
+        await deployProd();
+      }
+    });
+
+  deployCommand
+    .command('dev')
+    .description(chalk.gray('🔧 Quick development deploy'))
+    .action(async (...args) => {
+      const cmd = createEnhancedCommand('deploy dev', 'Deploying to dev', deployDev);
+      await cmd.execute(...args);
+    });
+
+  deployCommand
+    .command('prod')
+    .description(chalk.gray('🏭 Production deployment'))
+    .action(async (...args) => {
+      const cmd = createEnhancedCommand('deploy prod', 'Deploying to prod', deployProd);
+      await cmd.execute(...args);
+    });
+
+  // Add help enhancement
+  program.on('--help', () => {
+    console.log('\n');
+    console.log(boxen(
+      gradientString('blue', 'cyan')('💡 Pro Tips') + '\n' +
+      chalk.gray('• Quick: ') + chalk.cyan('adk c') + chalk.gray(', ') + chalk.cyan('adk dr') + '\n' +
+      chalk.gray('• Deploy: ') + chalk.cyan('adk d dev') + '\n' +
+      chalk.gray('• Help: ') + chalk.cyan('adk --help'),
+      {
+        padding: { top: 0, bottom: 0, left: 1, right: 1 },
+        borderStyle: 'round',
+        borderColor: 'blue',
+        backgroundColor: '#0a0a1a'
+      }
+    ));
   });
 
-deployCommand
-  .command('dev')
-  .description('Deploy to development environment (push to dev branch)')
-  .action(deployDev);
+  program.parse(process.argv);
 
-deployCommand
-  .command('prod')
-  .description('Deploy to production environment with version management and PR creation')
-  .action(deployProd);
+  // Show help if no command provided
+  if (!process.argv.slice(2).length) {
+    console.log(boxen(
+      chalk.blue('ℹ️ ') + chalk.white('Run ') + chalk.cyan('adk --help') + chalk.white(' for commands'),
+      {
+        padding: { top: 0, bottom: 0, left: 1, right: 1 },
+        margin: { top: 1, bottom: 0, left: 0, right: 0 },
+        borderStyle: 'round',
+        borderColor: 'blue',
+        backgroundColor: '#0a0a1a'
+      }
+    ));
+  }
+}
 
-program.parse(process.argv);
+// Run the main function
+main().catch(console.error);

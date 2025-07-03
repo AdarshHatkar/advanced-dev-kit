@@ -3,6 +3,7 @@ import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { ui } from '../utils/ui-helpers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,8 +15,12 @@ interface HealthCheck {
 }
 
 export async function doctor(): Promise<void> {
-  console.log(chalk.blue.bold('\n🔍 ADK Health Check\n'));
-  console.log(chalk.gray('Checking if Advanced Dev Kit is properly installed and configured...\n'));
+  ui.section('🩺 ADK Health Diagnostics', 'Comprehensive system and configuration check');
+  
+  const diagnosticSpinner = ui.createSpinner('Running diagnostic tests...');
+  diagnosticSpinner.start();
+  
+  await new Promise(resolve => setTimeout(resolve, 800)); // Brief pause for UX
   
   const checks: HealthCheck[] = [];
   
@@ -184,37 +189,75 @@ export async function doctor(): Promise<void> {
   }
 
   // Display results
+  diagnosticSpinner.stop();
+  
+  ui.info('Diagnostic Results:', 'Analysis of your ADK installation and environment');
+  console.log('');
+  
   let hasErrors = false;
   let hasWarnings = false;
+  let passCount = 0;
 
   checks.forEach(check => {
-    const icon = check.status === 'pass' ? '✅' : check.status === 'warn' ? '⚠️' : '❌';
-    const color = check.status === 'pass' ? chalk.green : check.status === 'warn' ? chalk.yellow : chalk.red;
+    const icons = {
+      pass: chalk.green('✓'),
+      warn: chalk.yellow('⚠'),
+      fail: chalk.red('✗')
+    };
     
-    console.log(`${icon} ${chalk.bold(check.name)}: ${color(check.message)}`);
+    const colors = {
+      pass: chalk.green,
+      warn: chalk.yellow,
+      fail: chalk.red
+    };
+    
+    console.log(`  ${icons[check.status]} ${chalk.bold(check.name)}`);
+    console.log(`    ${colors[check.status](check.message)}`);
+    console.log('');
     
     if (check.status === 'fail') hasErrors = true;
     if (check.status === 'warn') hasWarnings = true;
+    if (check.status === 'pass') passCount++;
   });
 
-  // Summary
-  console.log('\n' + chalk.blue.bold('Summary:'));
+  // Beautiful summary with progress visualization
+  ui.section('📊 Health Summary', 'Overall system status and recommendations');
   
+  console.log('Health Score: ' + ui.progressBar(passCount, checks.length, 25));
+  console.log('');
+  
+  ui.table([
+    { key: 'Total Checks', value: checks.length.toString() },
+    { key: 'Passed', value: chalk.green(passCount.toString()) },
+    { key: 'Warnings', value: chalk.yellow(checks.filter(c => c.status === 'warn').length.toString()) },
+    { key: 'Failures', value: chalk.red(checks.filter(c => c.status === 'fail').length.toString()) }
+  ]);
+  
+  console.log('');
+
+  // Enhanced status messages with beautiful styling
   if (!hasErrors && !hasWarnings) {
-    console.log(chalk.green.bold('🎉 ADK is working perfectly! All features are ready to use.'));
+    ui.confirmBox('🎉 ADK is working perfectly! All features are ready to use.', 'success');
     console.log(chalk.green('You can now use all ADK commands:'));
-    console.log(chalk.gray('  • npx adk do-task   - Run custom development tasks'));
-    console.log(chalk.gray('  • npx adk clean     - Clean temporary files'));
-    console.log(chalk.gray('  • npx adk deploy    - Deploy your project'));
+    console.log(chalk.gray('  • ') + chalk.cyan('adk task   ') + chalk.gray('- Run custom development tasks'));
+    console.log(chalk.gray('  • ') + chalk.cyan('adk clean  ') + chalk.gray('- Clean temporary files'));
+    console.log(chalk.gray('  • ') + chalk.cyan('adk deploy ') + chalk.gray('- Deploy your project'));
   } else if (!hasErrors && hasWarnings) {
-    console.log(chalk.yellow.bold('⚠️  ADK is working but some features may be limited.'));
+    ui.confirmBox('⚠️ ADK is working but some features may be limited.', 'warning');
     console.log(chalk.yellow('Review the warnings above to enable all features.'));
   } else {
-    console.log(chalk.red.bold('❌ ADK has installation issues that need attention.'));
+    ui.confirmBox('❌ ADK has installation issues that need attention.', 'error');
     console.log(chalk.red('Please fix the errors above or reinstall ADK:'));
-    console.log(chalk.gray('  npm install -g advanced-dev-kit'));
+    console.log(chalk.gray('  ') + chalk.cyan('npm install -g advanced-dev-kit'));
   }
 
-  console.log('\n' + chalk.gray('Need help? Visit: https://github.com/AdarshHatkar/advanced-dev-kit'));
-  console.log(chalk.gray('Report issues: https://github.com/AdarshHatkar/advanced-dev-kit/issues\n'));
+  // Help information in a beautiful box
+  console.log('\n');
+  ui.confirmBox(
+    '💡 Need Help?\n\n' +
+    '📖 Documentation: https://github.com/AdarshHatkar/advanced-dev-kit\n' +
+    '🐛 Report Issues: https://github.com/AdarshHatkar/advanced-dev-kit/issues\n' +
+    '💬 Community Support: Join our discussions',
+    'info'
+  );
 }

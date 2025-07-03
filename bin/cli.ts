@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import inquirer from 'inquirer';
 import { doTask } from '../src/commands/do-task.js';
 import { clean } from '../src/commands/clean.js';
 import { deployDev, deployProd } from '../src/commands/deploy.js';
@@ -24,7 +25,28 @@ program
 // Deploy command with subcommands
 const deployCommand = program
   .command('deploy')
-  .description('Deployment commands');
+  .description('Deployment commands')
+  .action(async () => {
+    // Interactive prompt when deploy is called without subcommands
+    const { environment } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'environment',
+        message: 'Select deployment environment:',
+        choices: [
+          { name: 'Development (dev)', value: 'dev' },
+          { name: 'Production (prod)', value: 'prod' }
+        ],
+        default: 'dev'
+      }
+    ]);
+
+    if (environment === 'dev') {
+      await deployDev();
+    } else {
+      await deployProd();
+    }
+  });
 
 deployCommand
   .command('dev')

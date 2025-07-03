@@ -1,7 +1,6 @@
 // Main entry point for the advanced development kit
 export * from './commands/do-task';
 export * from './commands/clean';
-export * from './commands/gen';
 
 // Version information
 export const VERSION = '1.0.0';

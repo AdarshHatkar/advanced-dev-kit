@@ -8,7 +8,6 @@ import boxen from 'boxen';
 import gradientString from 'gradient-string';
 import figlet from 'figlet';
 import ora from 'ora';
-import { doTask } from '../src/commands/do-task.js';
 import { clean } from '../src/commands/clean.js';
 import { deployDev, deployProd } from '../src/commands/deploy.js';
 import { doctor } from '../src/commands/doctor.js';
@@ -69,7 +68,25 @@ function createEnhancedCommand(name: string, description: string, action: Functi
         spinner.stop();
         console.log(chalk.green('✓'), chalk.bold(`${name} ready`));
         await action(...args);
-      } catch (error) {
+      } catch (error: any) {
+        spinner.stop();
+        
+        // Handle user cancellation gracefully
+        if (error.name === 'ExitPromptError' || error.message?.includes('SIGINT')) {
+          console.log('\n');
+          console.log(boxen(
+            chalk.yellow('⚠️ ') + chalk.white(`${name} cancelled by user`),
+            {
+              padding: { top: 0, bottom: 0, left: 1, right: 1 },
+              borderStyle: 'round',
+              borderColor: 'yellow',
+              backgroundColor: '#1a1a00'
+            }
+          ));
+          return;
+        }
+        
+        // Handle other errors
         spinner.fail(chalk.red(`Failed to execute ${name}`));
         console.error(chalk.red('Error:'), error);
         process.exit(1);
@@ -80,9 +97,12 @@ function createEnhancedCommand(name: string, description: string, action: Functi
 
 // Enhanced error handling and beautiful exit
 process.on('SIGINT', () => {
-  console.log('\n');
-  console.log(gradientString('yellow', 'orange')('👋 Thanks for using ADK! See you soon! ✨'));
-  process.exit(0);
+  // Only handle SIGINT if we're not in the middle of a prompt
+  if (!process.stdin.isTTY || process.stdin.readableEnded) {
+    console.log('\n');
+    console.log(gradientString('yellow', 'orange')('👋 Thanks for using ADK! See you soon! ✨'));
+    process.exit(0);
+  }
 });
 
 process.on('uncaughtException', (error) => {
@@ -120,15 +140,7 @@ async function main() {
       optionDescription: (option) => '  ' + chalk.gray(option.description)
     });
 
-  // Enhanced commands with beautiful styling
-  program
-    .command('do-task')
-    .alias('task')
-    .description(chalk.gray('🎯 Run custom development tasks'))
-    .action(async (...args) => {
-      const cmd = createEnhancedCommand('do-task', 'Running task', doTask);
-      await cmd.execute(...args);
-    });
+
 
   program
     .command('clean')
@@ -154,52 +166,71 @@ async function main() {
     .alias('d')
     .description(chalk.gray('🚀 Deploy with confidence'))
     .action(async () => {
-      console.log(boxen(
-        gradientString('magenta', 'cyan')('🚀 Deployment Center') + '\n' +
-        chalk.gray('Choose your destination'),
-        {
-          padding: { top: 0, bottom: 0, left: 1, right: 1 },
-          margin: { top: 1, bottom: 1, left: 0, right: 0 },
-          borderStyle: 'round',
-          borderColor: 'magenta',
-          backgroundColor: '#0a0a1a'
-        }
-      ));
-
-      const { environment } = await inquirer.prompt({
-        type: 'list',
-        name: 'environment',
-        message: chalk.bold('🎯 Select environment:'),
-        choices: [
-          { 
-            name: chalk.green('🔧 Development') + chalk.gray(' (quick deploy)'), 
-            value: 'dev',
-            short: 'Development'
-          },
-          { 
-            name: chalk.red('🏭 Production') + chalk.gray(' (full pipeline)'), 
-            value: 'prod',
-            short: 'Production'
+      try {
+        console.log(boxen(
+          gradientString('magenta', 'cyan')('🚀 Deployment Center') + '\n' +
+          chalk.gray('Choose your destination'),
+          {
+            padding: { top: 0, bottom: 0, left: 1, right: 1 },
+            margin: { top: 1, bottom: 1, left: 0, right: 0 },
+            borderStyle: 'round',
+            borderColor: 'magenta',
+            backgroundColor: '#0a0a1a'
           }
-        ],
-        default: 'dev'
-      });
+        ));
 
-      const spinner = ora({
-        text: chalk.cyan(`Preparing ${environment} deployment...`),
-        spinner: 'dots12',
-        color: 'cyan'
-      }).start();
+        const { environment } = await inquirer.prompt({
+          type: 'list',
+          name: 'environment',
+          message: chalk.bold('🎯 Select environment:'),
+          choices: [
+            { 
+              name: chalk.green('🔧 Development') + chalk.gray(' (quick deploy)'), 
+              value: 'dev',
+              short: 'Development'
+            },
+            { 
+              name: chalk.red('🏭 Production') + chalk.gray(' (full pipeline)'), 
+              value: 'prod',
+              short: 'Production'
+            }
+          ],
+          default: 'dev'
+        });
 
-      await new Promise(resolve => setTimeout(resolve, 800));
-      spinner.stop();
+        const spinner = ora({
+          text: chalk.cyan(`Preparing ${environment} deployment...`),
+          spinner: 'dots12',
+          color: 'cyan'
+        }).start();
 
-      if (environment === 'dev') {
-        console.log(chalk.green('✓'), chalk.bold('Deploying to Development'));
-        await deployDev();
-      } else {
-        console.log(chalk.red('✓'), chalk.bold('Deploying to Production'));
-        await deployProd();
+        await new Promise(resolve => setTimeout(resolve, 800));
+        spinner.stop();
+
+        if (environment === 'dev') {
+          console.log(chalk.green('✓'), chalk.bold('Deploying to Development'));
+          await deployDev();
+        } else {
+          console.log(chalk.red('✓'), chalk.bold('Deploying to Production'));
+          await deployProd();
+        }
+      } catch (error: any) {
+        // Handle user cancellation gracefully
+        if (error.name === 'ExitPromptError' || error.message?.includes('SIGINT')) {
+          console.log('\n');
+          console.log(boxen(
+            chalk.yellow('⚠️ ') + chalk.white('Deployment cancelled by user'),
+            {
+              padding: { top: 0, bottom: 0, left: 1, right: 1 },
+              borderStyle: 'round',
+              borderColor: 'yellow',
+              backgroundColor: '#1a1a00'
+            }
+          ));
+          return;
+        }
+        // Re-throw other errors
+        throw error;
       }
     });
 

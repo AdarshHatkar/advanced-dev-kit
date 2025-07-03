@@ -48,32 +48,68 @@ npx adk do-task build
 npx adk do-task test
 npx adk do-task deploy
 
+```bash
+# Execute a task
+npx adk do-task
+
 # Clean project artifacts
 npx adk clean
-npx adk clean --all
 
-# Generate code
-npx adk gen component
-npx adk gen service
-npx adk gen config --template basic
+# Deployment commands
+npx adk deploy dev          # Deploy to development environment
+npx adk deploy prod         # Deploy to production with version management
 ```
 
 ## Available Commands
 
-### `do-task <task>`
-Execute development tasks like build, test, or deploy.
+### `do-task`
+Execute custom development tasks.
 
-### `clean [options]`
-Clean project artifacts. Use `--all` to include node_modules.
+### `clean`
+Clean temporary folders and files.
 
-### `gen <type> [options]`
-Generate code templates for components, services, configs, or tests.
+### `deploy`
+Deployment commands with subcommands:
+
+#### `deploy dev`
+Deploy to development environment by pushing the main branch to dev branch with force.
+
+#### `deploy prod`
+Deploy to production environment with comprehensive workflow:
+- Pulls latest changes from stable branch
+- Checks for uncommitted changes
+- Ensures you're on the main branch
+- Auto-increments version if needed (using internal helper function)
+- Creates deployment commit with timestamp
+- Pushes changes to main branch
+- Creates pull request from main to stable
+- Opens PR in browser
+
+## Deployment Workflow
+
+The deployment system uses a `deploy.json` file to track deployment history:
+
+```json
+{
+  "last_deploy": "2025-07-03 14:30:00",
+  "hash": "abc123def456",
+  "version": "1.2.3"
+}
+```
+
+The `deploy prod` command includes automatic version management - it will increment the patch version automatically if the current version matches the last deployed version.
+
+### Prerequisites for Production Deployment
+
+1. **Git Repository**: Must be a git repository with `main` and `stable` branches
+2. **GitHub CLI**: Install and authenticate with `gh auth login` for PR creation
+3. **Clean Working Directory**: No uncommitted changes
+4. **Main Branch**: Must be on main branch for production deployment
 
 ## Scripts
 
 - `npm run build` - Build the project
 - `npm run dev` - Build and watch for changes
 - `npm run clean` - Clean build artifacts
-- `npm run test` - Run tests
-- `npm run lint` - Lint the code
-- `npm run typecheck` - Check TypeScript types
+- `npm run deploy:dev` - Deploy to development (alias for `adk deploy dev`)
+- `npm run deploy:prod` - Deploy to production (alias for `adk deploy prod`)

@@ -16,25 +16,6 @@
 - ⚡ **Fast & Modern** - Built with TypeScript and optimized for performance
 - 🎨 **Beautiful UI** - Rich terminal interface with colors and animations
 
-## Project Structure
-
-```
-advanced-dev-kit/
-├── bin/
-│   └── cli.ts            # Entry point for CLI commands
-├── src/
-│   ├── commands/
-│   │   ├── do-task.ts    # Task execution command
-│   │   ├── clean.ts      # Project cleanup command
-│   │   └── gen.ts        # Code generation command
-│   └── index.ts          # Main library exports
-├── tsconfig.json         # TypeScript configuration
-├── package.json          # Package configuration
-├── tsup.config.ts        # Build configuration
-└── README.md             # This file
-```
-
-> 📁 [Browse the full repository structure on GitHub](https://github.com/AdarshHatkar/advanced-dev-kit)
 
 ## 📦 Quick Start
 

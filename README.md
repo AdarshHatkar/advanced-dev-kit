@@ -3,7 +3,6 @@
 > A comprehensive CLI toolkit for modern development workflows - featuring task automation, project cleaning, and developer utilities built with TypeScript.
 
 [![npm version](https://img.shields.io/npm/v/advanced-dev-kit.svg)](https://www.npmjs.com/package/advanced-dev-kit)
-[![GitHub release](https://img.shields.io/github/release/AdarshHatkar/advanced-dev-kit.svg)](https://github.com/AdarshHatkar/advanced-dev-kit/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub stars](https://img.shields.io/github/stars/AdarshHatkar/advanced-dev-kit.svg)](https://github.com/AdarshHatkar/advanced-dev-kit/stargazers)
 [![GitHub issues](https://img.shields.io/github/issues/AdarshHatkar/advanced-dev-kit.svg)](https://github.com/AdarshHatkar/advanced-dev-kit/issues)

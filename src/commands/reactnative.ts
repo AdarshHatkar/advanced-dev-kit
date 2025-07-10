@@ -213,6 +213,167 @@ function runGradleBuildWithProgress(buildCommand: string, buildType: string): Pr
   });
 }
 
+// Enhanced clean function with detailed progress
+function runGradleCleanWithProgress(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Show what will be cleaned
+    console.log(boxen(
+      chalk.blue('🔍 Clean Analysis') + '\n' +
+      chalk.gray('Checking directories to clean...'),
+      {
+        padding: { top: 0, bottom: 0, left: 1, right: 1 },
+        margin: { top: 1, bottom: 1, left: 0, right: 0 },
+        borderStyle: 'round',
+        borderColor: 'blue',
+        backgroundColor: '#0a0a1a'
+      }
+    ));
+
+    const dirsToCheck = [
+      { path: 'android/app/build', name: 'App Build Directory' },
+      { path: 'android/build', name: 'Android Build Directory' },
+      { path: 'android/.gradle', name: 'Gradle Cache' },
+    ];
+
+    dirsToCheck.forEach(({ path, name }) => {
+      const fullPath = join(process.cwd(), path);
+      const exists = existsSync(fullPath);
+      console.log(
+        exists 
+          ? chalk.yellow('🗑️ ') + chalk.gray(`${name} (will be cleaned)`)
+          : chalk.green('✓ ') + chalk.gray(`${name} (already clean)`)
+      );
+    });
+
+    console.log(''); // Empty line for spacing
+
+    const spinner = ora({
+      text: chalk.cyan('Initializing clean process...'),
+      spinner: 'dots12',
+      color: 'cyan'
+    }).start();
+
+    // Step 1: PowerShell force delete
+    spinner.text = chalk.cyan('🗑️  Force deleting build directories...');
+    
+    try {
+      execSync('powershell -Command "if (Test-Path android\\app\\build) { Remove-Item -Path android\\app\\build -Recurse -Force }"', { 
+        stdio: 'pipe',
+        cwd: process.cwd()
+      });
+      spinner.text = chalk.cyan('✓ Build directories cleared');
+    } catch (e) {
+      spinner.text = chalk.cyan('⚠ Some files may be locked, continuing...');
+    }
+
+    // Step 2: Gradle clean with progress
+    const gradleProcess = spawn('cmd', ['/c', 'cd android && gradlew.bat clean'], {
+      cwd: process.cwd(),
+      stdio: 'pipe'
+    });
+
+    let cleanOutput = '';
+    let hasError = false;
+    let currentStep = 0;
+    
+    const cleanSteps = [
+      'Preparing clean',
+      'Cleaning compiled classes',
+      'Removing generated files',
+      'Clearing build cache',
+      'Finalizing cleanup'
+    ];
+
+    // Update progress periodically
+    const progressInterval = setInterval(() => {
+      currentStep = Math.min(currentStep + 1, cleanSteps.length - 1);
+      spinner.text = chalk.cyan(`🧹 ${cleanSteps[currentStep]}...`);
+    }, 1500);
+
+    gradleProcess.stdout?.on('data', (data) => {
+      const output = data.toString();
+      cleanOutput += output;
+      
+      // Parse Gradle clean output for task information
+      const taskMatch = output.match(/> Task :([^\n]+)/);
+      if (taskMatch) {
+        const task = taskMatch[1];
+        
+        // Update spinner based on current clean task
+        if (task.includes('clean')) {
+          spinner.text = chalk.cyan(`🧹 Cleaning ${task.split(':').pop()}...`);
+        } else if (task.includes('delete')) {
+          spinner.text = chalk.cyan(`🗑️  Deleting ${task.split(':').pop()}...`);
+        } else {
+          spinner.text = chalk.cyan(`🔧 ${task.split(':').pop()}...`);
+        }
+      }
+
+      // Check for clean completion
+      if (output.includes('BUILD SUCCESSFUL')) {
+        clearInterval(progressInterval);
+        spinner.succeed(chalk.green('✓ Android project cleaned successfully'));
+        
+        // Show clean completion summary
+        console.log(boxen(
+          chalk.green('🧹 Clean Complete!') + '\n' +
+          chalk.gray('• Build directories cleared') + '\n' +
+          chalk.gray('• Gradle cache refreshed') + '\n' +
+          chalk.gray('• Ready for fresh build'),
+          {
+            padding: { top: 0, bottom: 0, left: 1, right: 1 },
+            margin: { top: 1, bottom: 1, left: 0, right: 0 },
+            borderStyle: 'round',
+            borderColor: 'green',
+            backgroundColor: '#0a1a0a'
+          }
+        ));
+        
+        resolve();
+      }
+    });
+
+    gradleProcess.stderr?.on('data', (data) => {
+      const error = data.toString();
+      cleanOutput += error;
+      
+      // Check for specific error patterns
+      if (error.includes('BUILD FAILED') || error.includes('FAILURE')) {
+        hasError = true;
+        clearInterval(progressInterval);
+        spinner.warn(chalk.yellow('⚠ Clean had issues, proceeding with build...'));
+        
+        // Show more specific error information
+        if (error.includes('Unable to delete directory')) {
+          console.log(chalk.gray('Note: Some files may be locked by Windows Explorer or other processes'));
+        }
+        resolve(); // Don't reject, just warn and continue
+      }
+    });
+
+    gradleProcess.on('close', (code) => {
+      clearInterval(progressInterval);
+      
+      if (code === 0 && !hasError) {
+        if (!spinner.isSpinning) return; // Already handled success
+        spinner.succeed(chalk.green('✓ Android project cleaned successfully'));
+        resolve();
+      } else {
+        if (!hasError) {
+          spinner.warn(chalk.yellow('⚠ Clean completed with warnings'));
+        }
+        resolve(); // Don't reject, just warn and continue
+      }
+    });
+
+    gradleProcess.on('error', (error) => {
+      clearInterval(progressInterval);
+      spinner.warn(chalk.yellow('⚠ Clean process had issues, continuing...'));
+      resolve(); // Don't reject, just warn and continue
+    });
+  });
+}
+
 // Helper function to handle Windows file locking issues
 async function handleWindowsFileLocks() {
   console.log(boxen(
@@ -283,32 +444,23 @@ export async function buildAndroidRelease(skipClean: boolean = false, buildType:
   try {
     // Step 1: Clean (if not skipped)
     if (!skipClean) {
-      const cleanSpinner = ora({
-        text: chalk.cyan('Cleaning Android project...'),
-        spinner: 'dots12',
-        color: 'cyan'
-      }).start();
+      console.log(boxen(
+        chalk.yellow('🧹 Clean Process Starting') + '\n' +
+        chalk.gray('Removing previous build artifacts...'),
+        {
+          padding: { top: 0, bottom: 0, left: 1, right: 1 },
+          margin: { top: 1, bottom: 1, left: 0, right: 0 },
+          borderStyle: 'round',
+          borderColor: 'yellow',
+          backgroundColor: '#1a1a00'
+        }
+      ));
 
       try {
-        // First try to force delete build directory using PowerShell
-        try {
-          execSync('powershell -Command "if (Test-Path android\\app\\build) { Remove-Item -Path android\\app\\build -Recurse -Force }"', { 
-            stdio: 'pipe',
-            cwd: process.cwd()
-          });
-        } catch (e) {
-          // If PowerShell fails, continue with gradle clean
-        }
-
-        execSync('cd android && gradlew.bat clean', { 
-          stdio: 'pipe',
-          cwd: process.cwd()
-        });
-        cleanSpinner.succeed(chalk.green('✓ Android project cleaned'));
+        await runGradleCleanWithProgress();
       } catch (error: any) {
-        // If clean fails, warn but continue with build
-        cleanSpinner.warn(chalk.yellow('⚠ Clean had issues, proceeding with build...'));
-        console.log(chalk.gray('Note: Some files may be locked by Windows Explorer or other processes'));
+        // If clean fails completely, show help and continue
+        console.log(chalk.gray('Note: Clean process encountered issues, but continuing with build...'));
         
         // Check if it's the specific Windows file lock error
         if (error.message && error.message.includes('Unable to delete directory')) {

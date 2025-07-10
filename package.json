@@ -1,6 +1,6 @@
 {
   "name": "advanced-dev-kit",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A comprehensive CLI toolkit for modern development workflows - featuring task automation, project cleaning, and developer utilities",
   "keywords": [
     "cli",
@@ -70,7 +70,7 @@
     "postversion": "git push && git push --tags && npm publish",
     "deploy:dev": "adk deploy dev",
     "deploy:prod": "adk deploy prod",
-     "link": "npm run build && npm link",
+    "link": "npm run build && npm link",
     "unlink": "npm unlink -g run-project-commands"
   },
   "dependencies": {

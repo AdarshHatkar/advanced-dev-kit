@@ -69,7 +69,9 @@
     "release:patch": "npm version patch",
     "postversion": "git push && git push --tags && npm publish",
     "deploy:dev": "adk deploy dev",
-    "deploy:prod": "adk deploy prod"
+    "deploy:prod": "adk deploy prod",
+     "link": "npm run build && npm link",
+    "unlink": "npm unlink -g run-project-commands"
   },
   "dependencies": {
     "@types/inquirer": "^9.0.8",

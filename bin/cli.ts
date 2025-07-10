@@ -11,6 +11,7 @@ import ora from 'ora';
 import { clean } from '../src/commands/clean.js';
 import { deployDev, deployProd } from '../src/commands/deploy.js';
 import { doctor } from '../src/commands/doctor.js';
+import { buildAndroidRelease, buildAndroidDebug } from '../src/commands/reactnative.js';
 import { ui } from '../src/utils/ui-helpers.js';
 
 // Get package.json version
@@ -250,6 +251,128 @@ async function main() {
       await cmd.execute(...args);
     });
 
+  // React Native commands
+  const rnCommand = program
+    .command('rn')
+    .alias('react-native')
+    .description(chalk.gray('📱 React Native tools'));
+
+  rnCommand
+    .command('build')
+    .description(chalk.gray('🔨 Build React Native app'))
+    .action(async () => {
+      try {
+        console.log(boxen(
+          gradientString('green', 'blue')('📱 React Native Build Center') + '\n' +
+          chalk.gray('Choose your build target'),
+          {
+            padding: { top: 0, bottom: 0, left: 1, right: 1 },
+            margin: { top: 1, bottom: 1, left: 0, right: 0 },
+            borderStyle: 'round',
+            borderColor: 'green',
+            backgroundColor: '#0a1a0a'
+          }
+        ));
+
+        const { buildType } = await inquirer.prompt({
+          type: 'list',
+          name: 'buildType',
+          message: chalk.bold('🎯 Select build type:'),
+          choices: [
+            { 
+              name: chalk.green('🤖 Android Release') + chalk.gray(' (with clean)'), 
+              value: 'android-release',
+              short: 'Android Release'
+            },
+            { 
+              name: chalk.green('🤖 Android Release') + chalk.gray(' (skip clean)'), 
+              value: 'android-release-no-clean',
+              short: 'Android Release (No Clean)'
+            },
+            { 
+              name: chalk.yellow('🔧 Android Debug') + chalk.gray(' (with clean)'), 
+              value: 'android-debug',
+              short: 'Android Debug'
+            },
+            { 
+              name: chalk.yellow('🔧 Android Debug') + chalk.gray(' (skip clean)'), 
+              value: 'android-debug-no-clean',
+              short: 'Android Debug (No Clean)'
+            },
+            { 
+              name: chalk.gray('🍎 iOS Release') + chalk.gray(' (coming soon)'), 
+              value: 'ios-release',
+              disabled: 'Coming soon'
+            }
+          ],
+          default: 'android-release'
+        });
+
+        if (buildType === 'android-release') {
+          await buildAndroidRelease();
+        } else if (buildType === 'android-release-no-clean') {
+          await buildAndroidRelease(true);
+        } else if (buildType === 'android-debug') {
+          await buildAndroidDebug();
+        } else if (buildType === 'android-debug-no-clean') {
+          await buildAndroidDebug(true);
+        }
+      } catch (error: any) {
+        // Handle user cancellation gracefully
+        if (error.name === 'ExitPromptError' || error.message?.includes('SIGINT')) {
+          console.log('\n');
+          console.log(boxen(
+            chalk.yellow('⚠️ ') + chalk.white('Build cancelled by user'),
+            {
+              padding: { top: 0, bottom: 0, left: 1, right: 1 },
+              borderStyle: 'round',
+              borderColor: 'yellow',
+              backgroundColor: '#1a1a00'
+            }
+          ));
+          return;
+        }
+        // Re-throw other errors
+        throw error;
+      }
+    });
+
+  rnCommand
+    .command('build release')
+    .alias('br')
+    .description(chalk.gray('🚀 Quick Android release build'))
+    .action(async (...args) => {
+      const cmd = createEnhancedCommand('React Native build release', 'Building Android release', buildAndroidRelease);
+      await cmd.execute(...args);
+    });
+
+  rnCommand
+    .command('build release --no-clean')
+    .alias('brnc')
+    .description(chalk.gray('🚀 Android release build (skip clean)'))
+    .action(async (...args) => {
+      const cmd = createEnhancedCommand('React Native build release (no clean)', 'Building Android release without clean', () => buildAndroidRelease(true));
+      await cmd.execute(...args);
+    });
+
+  rnCommand
+    .command('build debug')
+    .alias('bd')
+    .description(chalk.gray('🔧 Android debug build'))
+    .action(async (...args) => {
+      const cmd = createEnhancedCommand('React Native build debug', 'Building Android debug', buildAndroidDebug);
+      await cmd.execute(...args);
+    });
+
+  rnCommand
+    .command('build debug --no-clean')
+    .alias('bdnc')
+    .description(chalk.gray('🔧 Android debug build (skip clean)'))
+    .action(async (...args) => {
+      const cmd = createEnhancedCommand('React Native build debug (no clean)', 'Building Android debug without clean', () => buildAndroidDebug(true));
+      await cmd.execute(...args);
+    });
+
   // Add help enhancement
   program.on('--help', () => {
     console.log('\n');
@@ -257,6 +380,9 @@ async function main() {
       gradientString('blue', 'cyan')('💡 Pro Tips') + '\n' +
       chalk.gray('• Quick: ') + chalk.cyan('adk c') + chalk.gray(', ') + chalk.cyan('adk dr') + '\n' +
       chalk.gray('• Deploy: ') + chalk.cyan('adk d dev') + '\n' +
+      chalk.gray('• RN Release: ') + chalk.cyan('adk rn br') + '\n' +
+      chalk.gray('• RN Debug: ') + chalk.cyan('adk rn bd') + '\n' +
+      chalk.gray('• No Clean: ') + chalk.cyan('adk rn brnc') + '\n' +
       chalk.gray('• Help: ') + chalk.cyan('adk --help'),
       {
         padding: { top: 0, bottom: 0, left: 1, right: 1 },

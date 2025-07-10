@@ -1,4 +1,3 @@
-
 import { ui } from '../utils/ui-helpers.js';
 import { promises as fs } from 'fs';
 import { join } from 'path';
@@ -7,6 +6,26 @@ import { existsSync } from 'fs';
 import { spawn } from 'child_process';
 
 export const clean = async () => {
+  // Support: adk clean nm or adk clean node_modules to delete node_modules only
+  const args = process.argv.slice(2).map(a => a.toLowerCase());
+  let cleanedNodeModules = false;
+  if (args.includes('nm') || args.includes('node_modules')) {
+    ui.section('🧹 Node Modules Cleanup', 'Removing node_modules directory');
+    const spinner = ui.createSpinner('Deleting node_modules...');
+    spinner.start();
+    try {
+      await fs.rm('node_modules', { recursive: true, force: true });
+      spinner.stop();
+      ui.success('node_modules deleted successfully!');
+      cleanedNodeModules = true;
+    } catch (error) {
+      spinner.fail('Failed to delete node_modules');
+      ui.error('Error deleting node_modules', error instanceof Error ? error.message : 'Unknown error');
+      process.exit(1);
+    }
+    // Do not return; continue with the rest of the clean logic
+  }
+
   ui.section('🧹 Project Cleanup', 'Removing build artifacts and temporary files');
 
   // Detect if this is a React Native project (android dir and app.json or package.json with react-native)
